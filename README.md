@@ -24,9 +24,11 @@ npm run tauri -- build --bundles nsis -- --locked
 
 Build yang berhasil menghasilkan installer di `src-tauri/target/release/bundle/nsis/`. Nama produk dan Start Menu: **ARDIN SAHAM**. Konfigurasi nama binary: `Ardin Saham.exe`. Installer dikonfigurasi menyertakan pemasang WebView2 offline. Build installer belum terverifikasi dalam lingkungan ini; jangan menganggap artifact tersedia sebelum workflow berhasil.
 
-## GitHub Actions
+## Unduh paket portabel (tanpa installer ARDIN SAHAM)
 
-Workflow `.github/workflows/windows.yml` menjalankan tes core, build frontend, tes browser dengan backend nyata, kemudian build NSIS pada Windows runner. Setelah kode berada di GitHub, buka **Actions → Windows validation and installer → Run workflow**. Unduh artifact `ARDIN-SAHAM-Windows-unverified-installer` hanya dari run yang berhasil. Workflow ini tidak menerbitkan release dan tidak menandatangani installer. Jalankan installer dan smoke test Windows secara manual sebelum distribusi: buka tanpa jaringan, simpan transaksi, tutup/buka ulang, backup dan restore. Build sukses tidak menggantikan tes pemasangan tersebut.
+Workflow **Windows portable artifact** menghasilkan artifact ZIP `ARDIN-SAHAM-Windows-x64-portable`. Unduh dari run berhasil, ekstrak semua berkas, lalu buka `Ardin Saham.exe`. Windows 10/11 x64 harus sudah memiliki Microsoft WebView2 Runtime; runtime tersebut belum dibundel dalam ZIP. Tidak perlu Node.js, Rust, instalasi ARDIN SAHAM, atau server lokal. Lihat [petunjuk portabel](docs/PORTABLE.md).
+
+Data tetap berada di `%APPDATA%\id.ardin.saham`, sehingga mengganti folder program tidak menghapus data. Workflow menjalankan tes Rust/browser, build tanpa installer, lalu smoke test native dengan koneksi keluar aplikasi/WebView2 diblokir firewall dan verifikasi database setelah buka/tutup. Smoke test hanya berjalan di runner sementara, tidak pada data pribadi. Artifact hanya diunggah jika semua langkah berhasil. Installer NSIS tetap dapat dibangun manual dengan perintah di atas.
 
 ## Alur awal
 
