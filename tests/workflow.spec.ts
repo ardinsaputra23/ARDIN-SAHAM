@@ -84,6 +84,20 @@ test("frontend + Rust + SQLite: buy, oversell rejection, reload and rules", asyn
   await expect(
     page.getByRole("row").filter({ hasText: "TP1" }).first(),
   ).toContainText("50");
+  await expect(
+    page.getByRole("cell", { name: "Harga belum diisi", exact: true }),
+  ).toHaveCount(3);
+  await page
+    .getByRole("button", { name: "Catat harga manual", exact: true })
+    .click();
+  await page.locator('input[name="price"]').fill("1200");
+  await page.getByRole("button", { name: "Simpan", exact: true }).click();
+  await expect(
+    page.getByRole("cell", { name: "Harga mencapai target", exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    page.getByRole("cell", { name: "Harga di bawah target", exact: true }),
+  ).toHaveCount(1);
   await page.getByRole("button", { name: /06\s*Dividend Tracker/ }).click();
   await page
     .getByRole("button", { name: "Tambah catatan", exact: true })

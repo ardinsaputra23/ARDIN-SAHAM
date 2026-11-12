@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "tauri": "tauri",
     "test:core": "cargo test --manifest-path core/Cargo.toml",
-    "test:e2e": "cargo build --manifest-path core/Cargo.toml --example test_rpc && playwright test"
+    "test:e2e": "npm run build && cargo build --locked --manifest-path core/Cargo.toml --example test_rpc && playwright test"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

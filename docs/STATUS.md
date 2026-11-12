@@ -1,3 +1,7 @@
+# Status terbaru — 12 November 2026
+
+Lihat [audit terbaru](AUDIT-2026-11-12.md): 22 tes Rust, 2 skenario browser termasuk offline, build frontend lulus. Kode baseline sudah di-commit lokal. Installer Windows belum tersedia. Catatan di bawah adalah baseline sebelum audit; angka pengujiannya bersifat historis.
+
 # Status implementasi
 
 Status: pengembangan sebagian, **bukan production-ready**. Repository yang dipilih pengguna: `ardinsaputra23/ARDIN-SAHAM`. Tidak ada perubahan pada `ardin-system`. Tidak ada push, release, publikasi lingkungan, atau installer terverifikasi dari sesi ini.

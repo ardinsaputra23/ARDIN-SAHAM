@@ -590,7 +590,7 @@ pub fn analytics(ledger: &Ledger) -> serde_json::Value {
             )
         })
         .sum();
-    serde_json::json!({"average_win":if wins.is_empty(){None}else{Some(gain/Decimal::from(wins.len() as u64))},"average_loss":if losses.is_empty(){None}else{Some(loss/Decimal::from(losses.len() as u64))},"profit_factor":if loss.is_zero(){None}else{Some(gain/(-loss))},"average_holding_days":if count==0{None}else{Some(Decimal::from(days)/Decimal::from(count as u64))},"best":ledger.closed.iter().max_by_key(|p|p.realized),"worst":ledger.closed.iter().min_by_key(|p|p.realized)})
+    serde_json::json!({"closed_count":count,"wins":wins.len(),"losses":losses.len(),"breakeven":count-wins.len()-losses.len(),"win_rate":if count==0{None}else{Some(Decimal::from(wins.len() as u64)*Decimal::from(100)/Decimal::from(count as u64))},"average_win":if wins.is_empty(){None}else{Some(gain/Decimal::from(wins.len() as u64))},"average_loss":if losses.is_empty(){None}else{Some(loss/Decimal::from(losses.len() as u64))},"profit_factor":if loss.is_zero(){None}else{Some(gain/(-loss))},"average_holding_days":if count==0{None}else{Some(Decimal::from(days)/Decimal::from(count as u64))},"best":ledger.closed.iter().max_by_key(|p|p.realized),"worst":ledger.closed.iter().min_by_key(|p|p.realized)})
 }
 impl Store {
     pub fn state(&self) -> Result<serde_json::Value> {
@@ -612,7 +612,22 @@ impl Store {
                     previews.insert(
                         code.to_string(),
                         match plan_preview(p, r) {
-                            Ok(v) => v,
+                            Ok(mut v) => {
+                                let quote = records
+                                    .iter()
+                                    .rev()
+                                    .find(|q| q.kind == "price" && q.stock == code);
+                                let current = quote.and_then(|q| money(field(q, "price")).ok());
+                                let (prices, _, _, _) = plan_inputs(r)?;
+                                v["price_statuses"] =
+                                    serde_json::json!(prices.map(|target| match current {
+                                        Some(price) if price >= target => "Harga mencapai target",
+                                        Some(_) => "Harga di bawah target",
+                                        None => "Harga belum diisi",
+                                    }));
+                                v["price_date"] = serde_json::json!(quote.map(|q| &q.date));
+                                v
+                            }
                             Err(e) => serde_json::json!({"error":e}),
                         },
                     );

@@ -31,6 +31,8 @@ type Position = {
 };
 type Preview = {
   error?: string;
+  price_statuses: string[];
+  price_date: string | null;
   average: string;
   returns: string[];
   risk_reward: (string | null)[];
@@ -48,6 +50,13 @@ type State = {
   previews: Record<string, Preview>;
   screening: Record<string, { mandatory_pass: boolean; statuses: string[] }>;
   analytics: {
+    closed_count: number;
+    wins: number;
+    losses: number;
+    breakeven: number;
+    win_rate: string | null;
+    best: Position | null;
+    worst: Position | null;
     average_win: string | null;
     average_loss: string | null;
     profit_factor: string | null;
@@ -313,6 +322,7 @@ function App() {
                   "Estimasi P/L",
                   "Risk/reward",
                   "Sisa lot",
+                  "Status harga manual",
                 ].map((h) => (
                   <th key={h}>{h}</th>
                 ))}
@@ -332,12 +342,17 @@ function App() {
                       : "Tidak berlaku"}
                   </td>
                   <td>{t.remaining_lots}</td>
+                  <td>{p.price_statuses[i]}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <p>{p.rounding}</p>
+        <p>
+          Status berdasarkan harga manual tanggal {p.price_date ?? "—"}; bukan
+          konfirmasi penjualan TP.
+        </p>
         <small>
           Estimasi berubah setelah transaksi baru. Tinjau alokasi setelah
           menambah atau mengurangi posisi. Rencana tidak mengeksekusi order.
@@ -677,15 +692,9 @@ function App() {
                   </p>
                   <p>
                     Win rate (siklus posisi ditutup):{" "}
-                    {data.ledger.closed.length
-                      ? (
-                          (data.ledger.closed.filter(
-                            (p) => Number(p.realized) > 0,
-                          ).length /
-                            data.ledger.closed.length) *
-                          100
-                        ).toFixed(2) + "%"
-                      : "Data belum cukup"}
+                    {data.analytics.win_rate === null
+                      ? "Data belum cukup"
+                      : Number(data.analytics.win_rate).toFixed(2) + "%"}
                   </p>
                   <small>
                     Realized P/L memakai weighted average cost termasuk fee.
@@ -694,8 +703,57 @@ function App() {
                     Rust.
                   </small>
                 </section>
-                {page === "Performance & Evaluation" &&
-                  recordTable("evaluation")}
+                {page === "Performance & Evaluation" && (
+                  <>
+                    <section aria-label="Statistik siklus">
+                      <h2>Statistik siklus ditutup</h2>
+                      <p>
+                        Menang: {data.analytics.wins} · Kalah:{" "}
+                        {data.analytics.losses} · Impas:{" "}
+                        {data.analytics.breakeven}
+                      </p>
+                      <p>
+                        Rata-rata keuntungan:{" "}
+                        {data.analytics.average_win === null
+                          ? "Data belum cukup"
+                          : rupiah(data.analytics.average_win)}
+                      </p>
+                      <p>
+                        Rata-rata kerugian:{" "}
+                        {data.analytics.average_loss === null
+                          ? "Data belum cukup"
+                          : rupiah(data.analytics.average_loss)}
+                      </p>
+                      <p>
+                        Profit factor:{" "}
+                        {data.analytics.profit_factor === null
+                          ? "Tidak tersedia (belum ada kerugian)"
+                          : Number(data.analytics.profit_factor).toFixed(2)}
+                      </p>
+                      <p>
+                        Rata-rata durasi:{" "}
+                        {data.analytics.average_holding_days === null
+                          ? "Data belum cukup"
+                          : Number(data.analytics.average_holding_days).toFixed(
+                              2,
+                            ) + " hari"}
+                      </p>
+                      <p>
+                        Siklus terbaik:{" "}
+                        {data.analytics.best
+                          ? `${data.analytics.best.stock} #${data.analytics.best.cycle} · ${rupiah(data.analytics.best.realized)}`
+                          : "Data belum cukup"}
+                      </p>
+                      <p>
+                        Siklus terburuk:{" "}
+                        {data.analytics.worst
+                          ? `${data.analytics.worst.stock} #${data.analytics.worst.cycle} · ${rupiah(data.analytics.worst.realized)}`
+                          : "Data belum cukup"}
+                      </p>
+                    </section>
+                    {recordTable("evaluation")}
+                  </>
+                )}
                 {page === "Dashboard" && (
                   <section>
                     <h2>Mulai mencatat investasi</h2>

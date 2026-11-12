@@ -299,3 +299,115 @@ fn invalid_dividend_rolls_back_and_can_be_corrected() {
     db.receive_dividend(1).unwrap();
     assert_eq!(db.events().unwrap().len(), 1);
 }
+
+#[test]
+fn statistics_closed_cycles_exclude_partial_sales_and_deposits() {
+    let empty = analytics(&Ledger::default());
+    assert!(empty["win_rate"].is_null());
+    let mut events = vec![
+        deposit(),
+        event(2, "BUY", 200, "1000", "0", "0"),
+        event(3, "SELL", 100, "1100", "0", "0"),
+    ];
+    assert_eq!(analytics(&replay(&events).unwrap())["closed_count"], 0);
+    events.extend([
+        event(4, "SELL", 100, "1100", "0", "0"),
+        event(5, "BUY", 100, "1000", "0", "0"),
+        event(6, "SELL", 100, "900", "0", "0"),
+        event(7, "BUY", 100, "1000", "0", "0"),
+        event(8, "SELL", 100, "1000", "0", "0"),
+    ]);
+    let result = analytics(&replay(&events).unwrap());
+    assert_eq!(result["closed_count"], 3);
+    assert_eq!(result["wins"], 1);
+    assert_eq!(result["losses"], 1);
+    assert_eq!(result["breakeven"], 1);
+    assert_eq!(result["average_win"], "20000");
+    assert_eq!(result["average_loss"], "-10000");
+    assert_eq!(result["profit_factor"], "2");
+    assert_eq!(result["best"]["cycle"], 1);
+    assert_eq!(result["worst"]["cycle"], 2);
+}
+
+#[test]
+fn journal_edit_persists_and_restores_without_changing_ledger() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("journal.db");
+    let mut db = Store::open(&path).unwrap();
+    db.stock("NCKL", "Trimegah", "Komoditas").unwrap();
+    for mut e in buys() {
+        e.id = 0;
+        db.save_event(e).unwrap();
+    }
+    let before = db.state().unwrap()["ledger"].clone();
+    let mut e = db.events().unwrap()[1].clone();
+    e.journal = "Strategi: beli bertahap\nRisiko: harga turun; keyakinan 70%".into();
+    db.save_event(e.clone()).unwrap();
+    assert_eq!(db.state().unwrap()["ledger"], before);
+    let backup = dir.path().join("backup.db");
+    db.backup(&backup).unwrap();
+    drop(db);
+    db = Store::open(&path).unwrap();
+    assert_eq!(db.events().unwrap()[1].journal, e.journal);
+    e.journal = "Koreksi".into();
+    db.save_event(e).unwrap();
+    db.restore(&backup, &dir.path().join("safety.db")).unwrap();
+    assert!(db.events().unwrap()[1].journal.contains("beli bertahap"));
+}
+
+#[test]
+fn watchlist_survives_reopen_and_buy() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("watch.db");
+    let mut db = Store::open(&path).unwrap();
+    db.stock("NCKL", "Trimegah", "Komoditas").unwrap();
+    db.save_record(Record{id:0,kind:"watchlist".into(),stock:"NCKL".into(),date:"2026-01-01".into(),data:serde_json::json!({"Status":"Dipantau","Target entry":"900","Catatan":"Tunggu support"})}).unwrap();
+    for mut e in buys() {
+        e.id = 0;
+        db.save_event(e).unwrap();
+    }
+    drop(db);
+    let db = Store::open(&path).unwrap();
+    assert_eq!(db.records().unwrap()[0].data["Catatan"], "Tunggu support");
+    assert_eq!(
+        db.state().unwrap()["ledger"]["positions"]["NCKL"]["shares"],
+        40000
+    );
+}
+
+#[test]
+fn take_profit_status_uses_latest_dated_manual_quote() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut db = Store::open(&dir.path().join("tp.db")).unwrap();
+    db.stock("NCKL", "Trimegah", "Komoditas").unwrap();
+    for mut e in buys() {
+        e.id = 0;
+        db.save_event(e).unwrap();
+    }
+    db.save_record(Record{id:0,kind:"plan".into(),stock:"NCKL".into(),date:"2026-01-04".into(),data:serde_json::json!({"TP1 harga":"1100","TP2 harga":"1200","TP3 harga":"1350","TP1 alokasi %":"25","TP2 alokasi %":"35","TP3 alokasi %":"40","Stop-loss":"700"})}).unwrap();
+    assert_eq!(
+        db.state().unwrap()["previews"]["NCKL"]["price_statuses"][0],
+        "Harga belum diisi"
+    );
+    for (date, price) in [("2026-01-10", "1200"), ("2026-01-09", "1400")] {
+        db.save_record(Record {
+            id: 0,
+            kind: "price".into(),
+            stock: "NCKL".into(),
+            date: date.into(),
+            data: serde_json::json!({"price":price}),
+        })
+        .unwrap();
+    }
+    let state = db.state().unwrap();
+    assert_eq!(
+        state["previews"]["NCKL"]["price_statuses"],
+        serde_json::json!([
+            "Harga mencapai target",
+            "Harga mencapai target",
+            "Harga di bawah target"
+        ])
+    );
+    assert_eq!(state["previews"]["NCKL"]["price_date"], "2026-01-10");
+    assert_eq!(state["ledger"]["positions"]["NCKL"]["shares"], 40000);
+}

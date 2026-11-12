@@ -2,6 +2,8 @@
 
 Personal Stock Portfolio & Investment Tracker untuk saham Indonesia. Aplikasi desktop lokal berbasis Tauri v2, React/TypeScript strict dan Rust/SQLite. **Versi pengembangan, belum siap produksi.** Tidak menggunakan API saham, login, scraping, atau telemetry. Harga dan analisis dimasukkan manual.
 
+Hasil sesi terbaru tersedia di [audit 12 November 2026](docs/AUDIT-2026-11-12.md).
+
 Lihat [status implementasi dan keterbatasan](docs/STATUS.md) sebelum menggunakan data penting. Spesifikasi lengkap tersedia di [docs/SPECIFICATION.md](docs/SPECIFICATION.md).
 
 ## Menjalankan di Windows

@@ -7,3 +7,5 @@ target/
 *.log
 test-results/
 playwright-report/
+
+work/
