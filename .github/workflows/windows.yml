@@ -1,0 +1,40 @@
+name: Windows portable artifact
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: cargo test --locked --manifest-path core/Cargo.toml
+      - run: npx playwright install chromium
+      - run: npm run test:e2e
+      - name: Build standalone Windows application
+        run: npm run tauri -- build --no-bundle -- --locked
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - name: Prepare portable files
+        shell: pwsh
+        run: ./scripts/package-portable.ps1
+        env:
+          BUILD_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Test native app offline and persistence
+        shell: pwsh
+        run: ./scripts/smoke-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ARDIN-SAHAM-Windows-x64-portable
+          path: work/portable/*
+          retention-days: 30
+          if-no-files-found: error
